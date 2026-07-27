@@ -7,6 +7,7 @@ from typing import Any
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 DATA_PATH = Path(__file__).parent / "model" / "data" / "ibm_hr_attrition.csv"
@@ -53,6 +54,11 @@ async def startup() -> None:
     artifact = joblib.load(MODEL_PATH)
     classifier = artifact["model"]
     feature_names = list(artifact["feature_names"])
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
