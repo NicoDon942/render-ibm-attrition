@@ -30,3 +30,28 @@ PORT=10000 uvicorn app:app --host 0.0.0.0 --port 10000
 ```
 
 Open `/health` and `/docs`.
+
+## Predict in `/docs`
+
+In Swagger, **POST `/predict-attrition` → Try it out** may show a placeholder like:
+
+```json
+{
+  "features": {
+    "additionalProp1": {}
+  }
+}
+```
+
+That placeholder is not valid input. Replace it with real employee fields:
+
+1. Call **GET `/preview?rows=1`**.
+2. Copy the returned employee object.
+3. Remove `"Attrition"` (the model predicts this).
+4. Wrap the remaining fields in `"features": { ... }`.
+5. Click **Execute**.
+
+Or pick **Ready-to-run employee example** from the example dropdown on that endpoint.
+
+Use **GET `/unique-values?column=Department`** (or another column) to see valid
+categorical values before editing fields like `OverTime` or `JobRole`.

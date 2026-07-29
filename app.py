@@ -6,9 +6,9 @@ from typing import Any
 
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 DATA_PATH = Path(__file__).parent / "model" / "data" / "ibm_hr_attrition.csv"
 MODEL_PATH = Path(
@@ -22,11 +22,24 @@ DESCRIPTION = """
 Human Resources API for teaching deploys on Render.
 
 ## Preview
-* `/preview` returns a few rows
-* `/unique-values` lists unique values for a column
+* `/preview` returns random employee rows from the dataset
+* `/unique-values` lists valid values for a column (useful before predicting)
 
 ## Predict
 * `/predict-attrition` predicts whether an employee is likely to leave
+
+### How to fill the request body in `/docs`
+Swagger shows a placeholder like `"additionalProp1": {}` — **delete that** and paste real
+column names and values instead.
+
+1. Call **GET `/preview?rows=1`** and copy the returned employee object.
+2. Remove the `"Attrition"` field (that is the label the model predicts).
+3. Wrap the remaining fields inside `"features": { ... }`.
+4. Keep every other field, including `"Unnamed: 0"`.
+5. Use exact text values for categorical fields (check with `/unique-values`).
+
+The **POST `/predict-attrition`** endpoint also includes a ready-to-run example you can
+load from the **Example value** dropdown when you click **Try it out**.
 """
 
 app = FastAPI(
@@ -41,9 +54,56 @@ classifier = None
 feature_names: list[str] = []
 
 
+SAMPLE_EMPLOYEE_FEATURES = {
+    "Unnamed: 0": 332,
+    "Age": 54,
+    "BusinessTravel": "Travel_Frequently",
+    "DailyRate": 928,
+    "Department": "Research & Development",
+    "DistanceFromHome": 20,
+    "Education": 4,
+    "EducationField": "Life Sciences",
+    "EmployeeCount": 1,
+    "EmployeeNumber": 450,
+    "EnvironmentSatisfaction": 4,
+    "Gender": "Female",
+    "HourlyRate": 31,
+    "JobInvolvement": 3,
+    "JobLevel": 2,
+    "JobRole": "Research Scientist",
+    "JobSatisfaction": 3,
+    "MaritalStatus": "Single",
+    "MonthlyIncome": 4869,
+    "MonthlyRate": 16885,
+    "NumCompaniesWorked": 3,
+    "Over18": "Y",
+    "OverTime": "No",
+    "PercentSalaryHike": 12,
+    "PerformanceRating": 3,
+    "RelationshipSatisfaction": 4,
+    "StandardHours": 80,
+    "StockOptionLevel": 0,
+    "TotalWorkingYears": 20,
+    "TrainingTimesLastYear": 4,
+    "WorkLifeBalance": 2,
+    "YearsAtCompany": 4,
+    "YearsInCurrentRole": 3,
+    "YearsSinceLastPromotion": 0,
+    "YearsWithCurrManager": 3,
+}
+
+
 class AttritionInput(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"features": SAMPLE_EMPLOYEE_FEATURES}]}
+    )
+
     features: dict[str, Any] = Field(
-        description="Feature name to value mapping expected by the trained model"
+        description=(
+            "Employee fields expected by the model. Do not include `Attrition`. "
+            "Easiest workflow: copy one row from GET /preview, remove `Attrition`, "
+            "and paste the rest here."
+        )
     )
 
 
@@ -90,7 +150,21 @@ async def unique_values(column: str):
 
 
 @app.post("/predict-attrition")
-async def predict_attrition(payload: AttritionInput):
+async def predict_attrition(
+    payload: AttritionInput = Body(
+        ...,
+        openapi_examples={
+            "sample_employee": {
+                "summary": "Ready-to-run employee example",
+                "description": (
+                    "Copy a row from GET /preview, remove Attrition, and wrap the "
+                    "remaining fields in features. This example works as-is."
+                ),
+                "value": {"features": SAMPLE_EMPLOYEE_FEATURES},
+            }
+        },
+    ),
+):
     if classifier is None:
         raise HTTPException(status_code=500, detail="Model not loaded.")
 
