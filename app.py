@@ -125,6 +125,7 @@ async def root():
 async def health():
     return {
         "status": "ok",
+        "test": "ok",
         "rows": 0 if df is None else len(df),
         "model_loaded": classifier is not None,
         "model_path": str(MODEL_PATH),
